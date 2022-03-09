@@ -104,18 +104,17 @@ create_new_thread(thread_function());
 void create_new_thread(void (*fun_ptr)()) {
   currthread = find_next_unused();
   printf("creating new thread at %d\n", currthread);
-  ucontext_t child = threads[currthread];
   thread_finished[currthread] = false;
-  getcontext(&child);
-  child.uc_link = 0;
-  child.uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
-  child.uc_stack.ss_size = THREAD_STACK_SIZE;
-  child.uc_stack.ss_flags = 0;
-  if (child.uc_stack.ss_sp == 0) {
+  getcontext(&threads[currthread]);
+  threads[currthread].uc_link = 0;
+  threads[currthread].uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
+  threads[currthread].uc_stack.ss_size = THREAD_STACK_SIZE;
+  threads[currthread].uc_stack.ss_flags = 0;
+  if (threads[currthread].uc_stack.ss_sp == 0) {
     perror("malloc: Could not allocate stack");
     exit(1);
   }
-  makecontext(&child, fun_ptr, 0);
+  makecontext(&threads[currthread], fun_ptr, 0);
   printf("finished creating new thread at %d\n", currthread);
 }
 
@@ -186,7 +185,7 @@ void schedule_threads() {
   while (!check_finished()) {
     printf("not done: switching to %d\n", find_next_used());
     swapcontext(&sch, &threads[find_next_used()]);
-    printf("swapped successfully");
+    printf("swapped successfully\n");
     currthread = find_next_used();
   }
   printf("finished entire program\n");
@@ -232,9 +231,9 @@ void thread_function()
 
 */
 void yield() {
-  printf("yielding thread %d to scheduler", currthread);
+  printf("yielding thread %d to scheduler\n", currthread);
   swapcontext(&threads[currthread], &sch);
-  printf("finished yielding thread %d to scheduler", currthread);
+  printf("finished yielding thread %d to scheduler\n", currthread);
 }
 
 /*
@@ -262,10 +261,10 @@ void thread_function()
 
 */
 void finish_thread() {
-  printf("finished thread %d", currthread);
+  printf("finished thread %d\n", currthread);
   thread_finished[currthread] = true;
   swapcontext(&threads[currthread], &sch);
-  printf("swapped back to scheduler");
+  printf("swapped back to scheduler\n");
 }
 
 
@@ -314,10 +313,5 @@ int find_next_used() {
  */
 
 bool check_finished() {
-  for (int i = 0; i < MAX_THREADS; i++) {
-    if (!thread_finished[(currthread+i)%MAX_THREADS]) {
-      return false;
-    }
-  }
-  return true;
+  return find_next_used() == -1;
 }
