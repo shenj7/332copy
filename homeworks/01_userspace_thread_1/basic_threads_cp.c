@@ -37,12 +37,9 @@ ucontext_t threads[MAX_THREADS];
 
 
 // add additional constants and globals here as you need
-ucontext_t sch;
 int currthread = 0;
-bool thread_finished[MAX_THREADS];
-int find_next_unused(), find_next_used();
-bool check_finished();
-
+ucontext_t child, parent;
+bool child_done = false;
 /*
 initialize_basic_threads
 
@@ -63,11 +60,6 @@ blank.
 
  */
 void initialize_basic_threads() {
-  printf("initializing\n");
-  for (int x  = 0; x < MAX_THREADS; x++) {
-    thread_finished[x] = true;
-  }
-  printf("finished init\n");
 }
 
 /*
@@ -102,10 +94,6 @@ create_new_thread(thread_function());
 
  */
 void create_new_thread(void (*fun_ptr)()) {
-  currthread = find_next_unused();
-  printf("creating new thread at %d\n", currthread);
-  ucontext_t child = threads[currthread];
-  thread_finished[currthread] = false;
   getcontext(&child);
   child.uc_link = 0;
   child.uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
@@ -116,7 +104,6 @@ void create_new_thread(void (*fun_ptr)()) {
     exit(1);
   }
   makecontext(&child, fun_ptr, 0);
-  printf("finished creating new thread at %d\n", currthread);
 }
 
 
@@ -183,13 +170,10 @@ schedule_threads()
 printf("All threads finished");
 */
 void schedule_threads() {
-  while (!check_finished()) {
-    printf("not done: switching to %d\n", find_next_used());
-    swapcontext(&sch, &threads[find_next_used()]);
-    printf("swapped successfully");
-    currthread = find_next_used();
+  while (!child_done) {
+    swapcontext(&parent, &child);
   }
-  printf("finished entire program\n");
+  printf("finished");
 }
 
 /*
@@ -232,9 +216,7 @@ void thread_function()
 
 */
 void yield() {
-  printf("yielding thread %d to scheduler", currthread);
-  swapcontext(&threads[currthread], &sch);
-  printf("finished yielding thread %d to scheduler", currthread);
+  swapcontext(&child, &parent);
 }
 
 /*
@@ -262,62 +244,7 @@ void thread_function()
 
 */
 void finish_thread() {
-  printf("finished thread %d", currthread);
-  thread_finished[currthread] = true;
-  swapcontext(&threads[currthread], &sch);
-  printf("swapped back to scheduler");
-}
-
-
-/*
- * find_next_unused
- * 
- * Finds the next unused thread in the thread array
- *
- * 
- */
-
-int find_next_unused() {
-  for (int i = 0; i < MAX_THREADS; i++) {
-    int check = (currthread+i)%MAX_THREADS;
-    if (thread_finished[check]) {
-      return check;
-    }
-  }
-  return -1;
-}
-
-
-/*
- * find_next_used
- *
- * Finds the next thread in use in the thread array
- *
- */
-
-int find_next_used() {
-  for (int i = 0; i < MAX_THREADS; i++) {
-    int check = (currthread+i)%MAX_THREADS;
-    if (!thread_finished[check]) {
-      return check;
-    }
-  }
-  return -1;
-}
-
-
-/*
- * check_finished
- *
- * Checks if all threads are finished
- *
- */
-
-bool check_finished() {
-  for (int i = 0; i < MAX_THREADS; i++) {
-    if (!thread_finished[(currthread+i)%MAX_THREADS]) {
-      return false;
-    }
-  }
-  return true;
+  printf("finished");
+  child_done = true;
+  swapcontext(&child, &parent);
 }
