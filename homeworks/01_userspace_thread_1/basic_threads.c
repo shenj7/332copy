@@ -43,6 +43,7 @@ bool thread_finished[MAX_THREADS];
 int find_next_unused(), find_next_used();
 bool check_finished();
 void implicit_fn(void (*fun_ptr)(void*), void* parameter);
+bool free_thread[MAX_THREADS];
 
 /*
 initialize_basic_threads
@@ -67,6 +68,7 @@ void initialize_basic_threads() {
   printf("initializing\n");
   for (int x  = 0; x < MAX_THREADS; x++) {
     thread_finished[x] = true;
+    free_thread[x] = false;
   }
   printf("finished init\n");
 }
@@ -153,6 +155,20 @@ void create_new_parameterized_thread(void (*fun_ptr)(void*), void* parameter) {
   printf("finished creating new thread at %d\n", openthread);
 }
 
+/*
+ * free_threads
+ *
+ * Frees all threads that have finished
+ *
+ */
+void free_threads() {
+  for (int i = 0; i < MAX_THREADS; i++) {
+    if (free_thread[i]) {
+      free(threads[i].uc_stack.ss_sp);
+      free_thread[i] = false;
+    }
+  }
+}
 
 /*
 schedule_threads
@@ -187,12 +203,17 @@ printf("All threads finished");
 */
 void schedule_threads() {
   while (!check_finished()) {
+    free_threads();
     printf("%d, %d, %d, %d, %d\n", thread_finished[0], thread_finished[1], thread_finished[2], thread_finished[3], thread_finished[4]);
     printf("not done: switching to %d\n", find_next_used());
     currthread = find_next_used();
     printf("current thread: %d\n", currthread);
     swapcontext(&sch, &threads[currthread]);
   }
+  //for (int i = 0; i < MAX_THREADS; i++) {
+  //  free(threads[i].uc_stack.ss_sp);
+  //}
+  free_threads();
   printf("finished entire program\n");
 }
 
@@ -268,8 +289,8 @@ void thread_function()
 void finish_thread() {
   printf("finished thread %d\n", currthread);
   thread_finished[currthread] = true;
+  free_thread[currthread] = true;
   swapcontext(&threads[currthread], &sch);
-  printf("swapped back to scheduler\n");
 }
 
 /*
