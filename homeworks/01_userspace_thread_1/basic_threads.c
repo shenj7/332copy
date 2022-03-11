@@ -102,20 +102,20 @@ create_new_thread(thread_function());
 
  */
 void create_new_thread(void (*fun_ptr)()) {
-  currthread = find_next_unused();
-  printf("creating new thread at %d\n", currthread);
-  thread_finished[currthread] = false;
-  getcontext(&threads[currthread]);
-  threads[currthread].uc_link = 0;
-  threads[currthread].uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
-  threads[currthread].uc_stack.ss_size = THREAD_STACK_SIZE;
-  threads[currthread].uc_stack.ss_flags = 0;
-  if (threads[currthread].uc_stack.ss_sp == 0) {
+  int openthread = find_next_unused();
+  printf("creating new thread at %d\n", openthread);
+  thread_finished[openthread] = false;
+  getcontext(&threads[openthread]);
+  threads[openthread].uc_link = 0;
+  threads[openthread].uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
+  threads[openthread].uc_stack.ss_size = THREAD_STACK_SIZE;
+  threads[openthread].uc_stack.ss_flags = 0;
+  if (threads[openthread].uc_stack.ss_sp == 0) {
     perror("malloc: Could not allocate stack");
     exit(1);
   }
-  makecontext(&threads[currthread], fun_ptr, 0);
-  printf("finished creating new thread at %d\n", currthread);
+  makecontext(&threads[openthread], fun_ptr, 0);
+  printf("finished creating new thread at %d\n", openthread);
 }
 
 
@@ -182,7 +182,6 @@ schedule_threads()
 printf("All threads finished");
 */
 void schedule_threads() {
-  currthread = find_next_used();
   while (!check_finished()) {
     printf("%d, %d, %d, %d, %d\n", thread_finished[0], thread_finished[1], thread_finished[2], thread_finished[3], thread_finished[4]);
     printf("not done: switching to %d\n", find_next_used());
@@ -300,7 +299,6 @@ int find_next_used() {
     int check = (currthread+i+1)%MAX_THREADS;
 //    int check = (currthread+i)%MAX_THREADS;
     if (!thread_finished[check]) {
-      printf("next used: %d\n", check);
       return check;
     }
   }
