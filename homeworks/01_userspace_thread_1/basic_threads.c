@@ -182,11 +182,13 @@ schedule_threads()
 printf("All threads finished");
 */
 void schedule_threads() {
+  currthread = find_next_used();
   while (!check_finished()) {
+    printf("%d, %d, %d, %d, %d\n", thread_finished[0], thread_finished[1], thread_finished[2], thread_finished[3], thread_finished[4]);
     printf("not done: switching to %d\n", find_next_used());
-    swapcontext(&sch, &threads[find_next_used()]);
-    printf("swapped successfully\n");
     currthread = find_next_used();
+    printf("current thread: %d\n", currthread);
+    swapcontext(&sch, &threads[currthread]);
   }
   printf("finished entire program\n");
 }
@@ -233,7 +235,7 @@ void thread_function()
 void yield() {
   printf("yielding thread %d to scheduler\n", currthread);
   swapcontext(&threads[currthread], &sch);
-  printf("finished yielding thread %d to scheduler\n", currthread);
+  printf("thread %d back from scheduler\n", currthread);
 }
 
 /*
@@ -272,7 +274,6 @@ void finish_thread() {
  * find_next_unused
  * 
  * Finds the next unused thread in the thread array
- *
  * 
  */
 
@@ -296,8 +297,10 @@ int find_next_unused() {
 
 int find_next_used() {
   for (int i = 0; i < MAX_THREADS; i++) {
-    int check = (currthread+i)%MAX_THREADS;
+    int check = (currthread+i+1)%MAX_THREADS;
+//    int check = (currthread+i)%MAX_THREADS;
     if (!thread_finished[check]) {
+      printf("next used: %d\n", check);
       return check;
     }
   }
@@ -313,5 +316,9 @@ int find_next_used() {
  */
 
 bool check_finished() {
+  printf("next used:%d\n", find_next_used());
+  if (find_next_used() == -1) {
+    printf("finished");
+  }
   return find_next_used() == -1;
 }
