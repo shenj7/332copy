@@ -25,7 +25,7 @@ void main() {
     initialize_basic_threads();
     create_new_thread(thread_function);
     create_new_thread(thread_function2);
-    schedule_threads_with_preempt(5);
+    schedule_threads_with_preempt(1);
     printf( "Everything finished\n" );
 }
 
