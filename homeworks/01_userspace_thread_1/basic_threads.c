@@ -42,6 +42,7 @@ int currthread = 0;
 bool thread_finished[MAX_THREADS];
 int find_next_unused(), find_next_used();
 bool check_finished();
+void implicit_fn(void (*fun_ptr)(void*), void* parameter);
 
 /*
 initialize_basic_threads
@@ -102,20 +103,7 @@ create_new_thread(thread_function());
 
  */
 void create_new_thread(void (*fun_ptr)()) {
-  int openthread = find_next_unused();
-  printf("creating new thread at %d\n", openthread);
-  thread_finished[openthread] = false;
-  getcontext(&threads[openthread]);
-  threads[openthread].uc_link = 0;
-  threads[openthread].uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
-  threads[openthread].uc_stack.ss_size = THREAD_STACK_SIZE;
-  threads[openthread].uc_stack.ss_flags = 0;
-  if (threads[openthread].uc_stack.ss_sp == 0) {
-    perror("malloc: Could not allocate stack");
-    exit(1);
-  }
-  makecontext(&threads[openthread], fun_ptr, 0);
-  printf("finished creating new thread at %d\n", openthread);
+  create_new_parameterized_thread(fun_ptr, NULL);
 }
 
 
@@ -146,7 +134,23 @@ schedule_threads();
  */
 
 void create_new_parameterized_thread(void (*fun_ptr)(void*), void* parameter) {
-
+  int openthread = find_next_unused();
+  printf("creating new thread at %d\n", openthread);
+  thread_finished[openthread] = false;
+  getcontext(&threads[openthread]);
+  threads[openthread].uc_link = 0;
+  threads[openthread].uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
+  threads[openthread].uc_stack.ss_size = THREAD_STACK_SIZE;
+  threads[openthread].uc_stack.ss_flags = 0;
+  if (threads[openthread].uc_stack.ss_sp == 0) {
+    perror("malloc: Could not allocate stack");
+    exit(1);
+  }
+  //void(*cast_ptr)() = (void(*)()) fun_ptr;
+  void (*i_fn)(void(*)(void*), void*) = &implicit_fn;
+  void(*cast_ptr)() = (void(*)()) i_fn; 
+  makecontext(&threads[openthread], cast_ptr, 2, fun_ptr, parameter);
+  printf("finished creating new thread at %d\n", openthread);
 }
 
 
@@ -268,6 +272,17 @@ void finish_thread() {
   printf("swapped back to scheduler\n");
 }
 
+/*
+ * implicit_fn
+ *
+ * Takes a function pointer and returns a function pointer with
+ * finish_thread called automatically
+ *
+ */
+void implicit_fn(void (*fun_ptr)(void*), void* parameter) {
+  fun_ptr(parameter);
+  finish_thread();
+}
 
 /*
  * find_next_unused
