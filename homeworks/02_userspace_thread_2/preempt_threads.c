@@ -47,6 +47,10 @@ bool check_finished();
 void implicit_fn(void (*fun_ptr)(void*), void* parameter);
 bool free_thread[MAX_THREADS];
 void catch_alarm(int);
+void create_alarm();
+int delay;
+sigset_t mask;
+void mask_alarm(), unmask_alarm();
 
 /*
 initialize_basic_threads
@@ -68,12 +72,12 @@ blank.
 
  */
 void initialize_basic_threads() {
-  printf("initializing\n");
+  //printf("initializing\n");
   for (int x  = 0; x < MAX_THREADS; x++) {
     thread_finished[x] = true;
     free_thread[x] = false;
   }
-  printf("finished init\n");
+  //printf("finished init\n");
 }
 
 /*
@@ -140,8 +144,9 @@ schedule_threads();
 
 void create_new_parameterized_thread(void (*fun_ptr)(void*), void* parameter) {
   int openthread = find_next_unused();
-  printf("creating new thread at %d\n", openthread);
+  //printf("creating new thread at %d\n", openthread);
   thread_finished[openthread] = false;
+  mask_alarm();
   getcontext(&threads[openthread]);
   threads[openthread].uc_link = 0;
   threads[openthread].uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
@@ -155,7 +160,8 @@ void create_new_parameterized_thread(void (*fun_ptr)(void*), void* parameter) {
   void (*i_fn)(void(*)(void*), void*) = &implicit_fn;
   void(*cast_ptr)() = (void(*)()) i_fn; 
   makecontext(&threads[openthread], cast_ptr, 2, fun_ptr, parameter);
-  printf("finished creating new thread at %d\n", openthread);
+  unmask_alarm();
+  //printf("finished creating new thread at %d\n", openthread);
 }
 
 /*
@@ -200,26 +206,26 @@ create_new_thread(thread_function1());
 create_new_thread(thread_function2());
 create_new_thread(thread_function3());
 
-printf("Starting threads...");
+//printf("Starting threads...");
 schedule_threads()
-printf("All threads finished");
+//printf("All threads finished");
 */
 void schedule_threads_with_preempt(int usecs) {
+  delay = usecs;
   signal(SIGALRM, catch_alarm);
   while (!check_finished()) {
     free_threads();
-    printf("%d, %d, %d, %d, %d\n", thread_finished[0], thread_finished[1], thread_finished[2], thread_finished[3], thread_finished[4]);
-    printf("not done: switching to %d\n", find_next_used());
+    //printf("%d, %d, %d, %d, %d\n", thread_finished[0], thread_finished[1], thread_finished[2], thread_finished[3], thread_finished[4]);
+    //printf("not done: switching to %d\n", find_next_used());
     currthread = find_next_used();
-    printf("current thread: %d\n", currthread);
-    ualarm(usecs, 0);
+    //printf("current thread: %d\n", currthread);
+    mask_alarm(); //unmasked in implicit fn
     swapcontext(&sch, &threads[currthread]);
+    mask_alarm(); //for the unmask in yield
   }
-  //for (int i = 0; i < MAX_THREADS; i++) {
-  //  free(threads[i].uc_stack.ss_sp);
-  //}
+  signal(SIGALRM, SIG_IGN);
   free_threads();
-  printf("finished entire program\n");
+  //printf("finished entire program\n");
 }
 
 /*
@@ -248,23 +254,34 @@ Example usage:
 void thread_function()
 {
     for(int i = 0; i < 200; i++) {
-        printf( "working\n" );
+        //printf( "working\n" );
         
         // allow other threads to do some work too
         yield();
         // ok, switched back, better do some more work
     }
-    printf( "done\n" );
+    //printf( "done\n" );
     
     // like yield but never switches back
     finish_thread();
 }
 
 */
+
 void yield() {
-  printf("yielding thread %d to scheduler\n", currthread);
+  //printf("yielding thread %d to scheduler\n", currthread);
+  mask_alarm();
   swapcontext(&threads[currthread], &sch);
-  printf("thread %d back from scheduler\n", currthread);
+  unmask_alarm(); //unmasks the mask from scheduler
+  create_alarm();
+  //printf("thread %d back from scheduler\n", currthread);
+}
+
+void mask_yield() {
+  //printf("yielding thread %d to scheduler\n", currthread);
+  swapcontext(&threads[currthread], &sch);
+  create_alarm();
+  //printf("thread %d back from scheduler\n", currthread);
 }
 
 /*
@@ -276,9 +293,9 @@ void yield() {
 
 void catch_alarm(int sig_num)
 {
-    printf("alarm\n"); //BTW it's not really safe to print in a signal
+    //printf("caught alarm\n"); //BTW it's not really safe to print in a signal
                        //handler, but it won't usually cause a problem
-    yield();
+    mask_yield();
 }
 
 /*
@@ -299,16 +316,17 @@ Example usage:
 
 void thread_function()
 {
-    printf("thread running\n");
+    //printf("thread running\n");
     finish_thread();
-    printf("If this lines prints, finish thread is broken\n");
+    //printf("If this lines prints, finish thread is broken\n");
 }
 
 */
 void finish_thread() {
-  printf("finished thread %d\n", currthread);
+  //printf("finished thread %d\n", currthread);
   thread_finished[currthread] = true;
   free_thread[currthread] = true;
+  mask_alarm();
   swapcontext(&threads[currthread], &sch);
 }
 
@@ -320,6 +338,8 @@ void finish_thread() {
  *
  */
 void implicit_fn(void (*fun_ptr)(void*), void* parameter) {
+  unmask_alarm(); //unmasks the mask from scheduler
+  create_alarm();
   fun_ptr(parameter);
   finish_thread();
 }
@@ -352,7 +372,6 @@ int find_next_unused() {
 int find_next_used() {
   for (int i = 0; i < MAX_THREADS; i++) {
     int check = (currthread+i+1)%MAX_THREADS;
-//    int check = (currthread+i)%MAX_THREADS;
     if (!thread_finished[check]) {
       return check;
     }
@@ -369,9 +388,54 @@ int find_next_used() {
  */
 
 bool check_finished() {
-  printf("next used:%d\n", find_next_used());
+  //printf("next used:%d\n", find_next_used());
   if (find_next_used() == -1) {
-    printf("finished");
+    //printf("finished");
   }
   return find_next_used() == -1;
+}
+
+/*
+ * mask_alarm
+ *
+ * Masks alarm
+ *
+ */
+
+void mask_alarm() {
+  sigemptyset (&mask);
+  sigaddset (&mask, SIGALRM);
+  //printf("created mask\n");
+  if(sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
+      perror ("sigprocmask");
+  }
+}
+
+/*
+ * unmask_alarm
+ *
+ * Unmasks alarm
+ *
+ */
+
+void unmask_alarm() {
+  sigemptyset(&mask);
+  sigaddset (&mask, SIGALRM);
+  //printf("created mask\n");
+  if(sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0) {
+      perror ("sigprocmask");
+  }
+  //printf("unmasked alarm\n");
+}
+
+/*
+ * create_alarm
+ *
+ * Creates alarm
+ *
+ */
+
+void create_alarm() {
+  //printf("creating alarm\n");
+  ualarm(delay, 0); //alarm starts here
 }
