@@ -33,5 +33,33 @@ int main() {
             printf("Command is '%s' with argument '%s'\n", parsed_command[0], parsed_command[1]); 
         }
 
+        //rename cmd and argument for simplicity
+        char* cmd = parsed_command[0];
+        char* arg = parsed_command[1];
+
+        //exit
+        if (strncmp(cmd, ":q", 2) == 0) {
+          printf("exiting\n");
+          return 0;
+        }
+
+        //fork the process so one can run shell while the other runs the command
+        int pid = fork();
+
+        if (pid == 0) {
+          //execute command with args
+          execlp(cmd, cmd, arg, NULL);
+        }
+
+        if (strncmp(cmd, "BG", 2) == 0) {
+          //background processes
+          printf("running background process\n");
+        } else {
+          //foreground processes
+          int status;
+          wait(&status);
+          printf("background process executed with status %d\n", WEXITSTATUS(status));
+        }
+      
     }
 }
