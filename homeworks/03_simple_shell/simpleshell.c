@@ -46,19 +46,27 @@ int main() {
         //fork the process so one can run shell while the other runs the command
         int pid = fork();
 
-        if (pid == 0) {
-          //execute command with args
-          execlp(cmd, cmd, arg, NULL);
-        }
-
-        if (strncmp(cmd, "BG", 2) == 0) {
+        if (pid == 0 && strncmp(cmd, "BG", 2) == 0) {
           //background processes
           printf("running background process\n");
+          char* bgcmd;
+          strncpy(bgcmd, &command[2], strlen(&command[2])); //use command for string operations
+          printf("penis: %s", bgcmd);
+          int bgpid = fork();
+          if (bgpid == 0) {
+            execlp(bgcmd, bgcmd, arg, NULL);
+          }
+          int bgstatus;
+          wait(&bgstatus);
+          printf("background process executed with status %d\n", WEXITSTATUS(bgstatus));
         } else {
+          if (pid == 0) {
+            execlp(cmd, cmd, arg, NULL);
+          }
           //foreground processes
           int status;
           wait(&status);
-          printf("background process executed with status %d\n", WEXITSTATUS(status));
+          printf("foreground process executed with status %d\n", WEXITSTATUS(status));
         }
       
     }
