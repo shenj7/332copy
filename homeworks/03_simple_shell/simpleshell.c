@@ -46,23 +46,30 @@ int main() {
         //fork the process so one can run shell while the other runs the command
         int pid = fork();
         if (pid == 0) {
+          printf("background %d\n", strncmp(cmd, "BG", 2));
           if (strncmp(cmd, "BG", 2) == 0) {
             //background processes
-            printf("running background process\n");
-            char* bgcmd;
+            printf("penis:");
+            // printf("running background process\n");
+            printf("penis:");
+            char* bgcmd = "";
+                        printf("penis:");
             strncpy(bgcmd, &command[2], strlen(&command[2])); //use command for string operations
             printf("penis: %s", bgcmd);
             int bgpid = fork();
             if (bgpid == 0) {
               printf("bgps %s start!!!\n", bgcmd);
               execlp(bgcmd, bgcmd, arg, NULL);
+              exit(99);
             }
             int bgstatus;
             wait(&bgstatus);
-            printf("background process executed with status %d\n", WEXITSTATUS(bgstatus));
+            exit(99);
+            // printf("background process executed with status %d\n", WEXITSTATUS(bgstatus));
           } else {
             printf("running foreground process\n");
             execlp(cmd, cmd, arg, NULL);
+            exit(99);
             //foreground processes
           }
         }
