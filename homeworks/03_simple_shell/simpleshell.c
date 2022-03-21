@@ -60,7 +60,7 @@ int main() {
             if (bgpid == 0) {
               printf("bgps %s start!!!\n", bgcmd);
               execlp(bgcmd, bgcmd, arg, NULL);
-              exit(99);
+              exit(1);
             }
             int bgstatus;
             wait(&bgstatus);
