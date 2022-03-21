@@ -49,32 +49,31 @@ int main() {
           printf("background %d\n", strncmp(cmd, "BG", 2));
           if (strncmp(cmd, "BG", 2) == 0) {
             //background processes
-            printf("penis:");
-            // printf("running background process\n");
-            printf("penis:");
-            char* bgcmd = "";
-                        printf("penis:");
+            //printf("running background process\n");
+            char* bgcmd = malloc(strlen(&command[2]));
             strncpy(bgcmd, &command[2], strlen(&command[2])); //use command for string operations
-            printf("penis: %s", bgcmd);
+            //printf("background command: %s\n", bgcmd);
             int bgpid = fork();
             if (bgpid == 0) {
-              printf("bgps %s start!!!\n", bgcmd);
+              //printf("bgps %s start!!!\n", bgcmd);
               execlp(bgcmd, bgcmd, arg, NULL);
               exit(1);
             }
+            free(bgcmd);
             int bgstatus;
             wait(&bgstatus);
-            exit(99);
-            // printf("background process executed with status %d\n", WEXITSTATUS(bgstatus));
+            printf("background process completed\n");
+            exit(2);
+            printf("background process executed with status %d\n", WEXITSTATUS(bgstatus));
           } else {
             printf("running foreground process\n");
             execlp(cmd, cmd, arg, NULL);
-            exit(99);
+            exit(3);
             //foreground processes
           }
         }
         int status;
         wait(&status);
-        printf("foreground process executed with status %d\n", WEXITSTATUS(status));
+        //printf("foreground process executed with status %d\n", WEXITSTATUS(status));
     }
 }
