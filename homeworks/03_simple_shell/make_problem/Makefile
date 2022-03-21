@@ -32,5 +32,14 @@
 
 ## Here's a free rule for your convenience
 ## Remove all the compilation and debugging files
+all:
+	make author unittest
+
 clean: 
 	rm -f author unittest *.o *~
+
+author: main.c
+	gcc ... -o author
+
+unittest: unittest.c
+	gcc ... -o unittest
