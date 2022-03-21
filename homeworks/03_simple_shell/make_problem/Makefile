@@ -38,8 +38,14 @@ all:
 clean: 
 	rm -f author unittest *.o *~
 
-author: main.c
-	gcc ... -o author
+author: main.c author.o
+	gcc main.c author.o -o author
 
-unittest: unittest.c
-	gcc ... -o unittest
+author.o: main.c
+	gcc main.c author.c author.h -o author.o
+
+unittest: unittest.o
+	gcc unittest.o -o unittest
+
+unittest.o: unittest.c
+	gcc unittest.c author.o CuTest.c CuTest.h -o unittest.o
