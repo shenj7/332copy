@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+
 
 #define simple_assert(message, test) do { if (!(test)) return message; } while (0)
 #define TEST_PASSED NULL
@@ -35,45 +38,13 @@ void setup() {
     // imagine this function does a lot of other complicated setup
     // that takes a long time
     usleep(3000000);
-    
+    printf("finished setup\n");
 }
 
 char* test1();
+char* test2();
+char* test3();
 
-void* run_test(void *test_to_run_void) {
-    setup();
-    char* (*test_func)() = test_to_run_void;
-    return test_func();
-}
-
-void run_all_tests() {
-
-    pthread_t tests[100];
-    
-    
-    for(int i = 0; i < num_tests; i++) {
-        if(pthread_create(&tests[i], NULL, &run_test, test_funcs[i])) {
-
-            printf("Error creating thread\n");
-            exit(2);
-
-        }
-    }
-    for(int i = 0; i < num_tests; i++) {
-        char* result = NULL;
-        if(pthread_join(tests[i],(void**) &result)) {
-            printf("Error joining thread\n");
-            exit(2);
-        }
-        if(result == TEST_PASSED) {
-            printf("Test Passed\n");
-        } else {
-            printf("Test Failed: %s\n",result);
-        }
-
-    }
-        
-}
 
 char* test1() {
 
@@ -156,6 +127,61 @@ char* test5() {
     return TEST_PASSED;
 }
 
+void run_test(char* (fn)()) {
+  setup();
+  int pid = fork();
+  if (pid == 0) {
+    char* res = fn();
+    printf("result: %s\n", res);
+    exit(0);
+  }
+  int stat;
+  wait(&stat);
+  printf("test done\n");
+}
+
+
+void run_all_tests() {
+
+//    pthread_t tests[100];
+//    
+//    
+//    for(int i = 0; i < num_tests; i++) {
+//        if(pthread_create(&tests[i], NULL, &run_test, test_funcs[i])) {
+//
+//            printf("Error creating thread\n");
+//            exit(2);
+//
+//        }
+//    }
+//    for(int i = 0; i < num_tests; i++) {
+//        char* result = NULL;
+//        if(pthread_join(tests[i],(void**) &result)) {
+//            printf("Error joining thread\n");
+//            exit(2);
+//        }
+//        if(result == TEST_PASSED) {
+//            printf("Test Passed\n");
+//        } else {
+//            printf("Test Failed: %s\n",result);
+//        }
+//
+//    }
+
+  
+  int setuppid = fork();
+  int setupstatus;
+  if (setuppid == 0) {
+    setup();
+  } else {
+    wait(&setupstatus);
+    printf("setup: %d", data[0][0]);
+    for (int i = 0; i < num_tests; i++) {
+      run_test(test_funcs[i]);
+    }    
+  }
+}
+
 void main() {
     add_test(test1);
     add_test(test2);
@@ -164,4 +190,5 @@ void main() {
     // add_test(test5); // uncomment for Step 5
     run_all_tests();
     
+    printf("more setup: %d%d", data[0][0], data[1][1]);
 }
