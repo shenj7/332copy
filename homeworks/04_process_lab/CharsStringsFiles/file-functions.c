@@ -61,7 +61,8 @@ int fgetlines(char* fileName, char ***fileLines) {
     free(result);
     return 0;
   }
-
+  
+  nextLine = malloc(MAX_LINE_LENGTH);
   len = fgetline(filePtr, nextLine, MAX_LINE_LENGTH);
   while (len && lineCount < MAX_LINES) {
     result[lineCount] = nextLine;

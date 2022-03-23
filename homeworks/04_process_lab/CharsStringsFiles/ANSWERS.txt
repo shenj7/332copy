@@ -3,13 +3,14 @@ Be sure to write your name(s) in this file.
 Answer the questions posted in the instructions here.
 
 Question 1:
-
 (a)
-
+Segmentation Fault
 
 (b)
+Line 30, file-functions.c, fgetline().
 
 Problem 2:
+The nextline variable in file-functions (line 51) was not malloced, which led to a seg fault.
 
 Problem 3:
-
+Line 65
