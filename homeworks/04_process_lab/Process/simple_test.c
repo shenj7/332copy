@@ -38,7 +38,7 @@ void setup() {
     // imagine this function does a lot of other complicated setup
     // that takes a long time
     usleep(3000000);
-    printf("finished setup\n");
+    //printf("finished setup\n");
 }
 
 char* test1();
@@ -128,16 +128,14 @@ char* test5() {
 }
 
 void run_test(char* (fn)()) {
-  setup();
-  int pid = fork();
-  if (pid == 0) {
-    char* res = fn();
-    printf("result: %s\n", res);
+  char* res = fn();
+  if(res == TEST_PASSED) {
     exit(0);
+    printf("Test Passed\n");
+  } else {
+    exit(1);
+    printf("Test Failed: %s\n",res);
   }
-  int stat;
-  wait(&stat);
-  printf("test done\n");
 }
 
 
@@ -169,16 +167,26 @@ void run_all_tests() {
 //    }
 
   
-  int setuppid = fork();
-  int setupstatus;
-  if (setuppid == 0) {
-    setup();
-  } else {
-    wait(&setupstatus);
-    printf("setup: %d", data[0][0]);
-    for (int i = 0; i < num_tests; i++) {
-      run_test(test_funcs[i]);
-    }    
+  for (int i = 0; i < num_tests; i++) {
+    int pid = fork();
+    if (pid == 0) {
+      setup();
+      run_test(test_funcs[i]);    
+      printf("test done\n");
+    }   
+  }
+  for (int i = 0; i < num_tests; i++) {
+    int stat;
+    wait(&stat);
+    if (!WIFEXITED(stat)) {
+      printf("test crashed");
+    } else {
+      if (stat == 0) {
+        printf("test passed\n");
+      } else {
+        printf("test failed\n");
+      }
+    }
   }
 }
 
@@ -190,5 +198,4 @@ void main() {
     // add_test(test5); // uncomment for Step 5
     run_all_tests();
     
-    printf("more setup: %d%d", data[0][0], data[1][1]);
 }
