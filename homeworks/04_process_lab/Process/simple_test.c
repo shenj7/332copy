@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <sys/wait.h>
 #include <sys/types.h>
-
+#include <sys/mman.h>
 
 #define simple_assert(message, test) do { if (!(test)) return message; } while (0)
 #define TEST_PASSED NULL
@@ -18,6 +18,9 @@ char* (*test_funcs[MAX_TESTS])(); // array of function pointers that store
 int num_tests = 0;
 
 int data[DATA_SIZE][DATA_SIZE]; // shared data that the tests use
+
+// long long int *global_var = mmap(NULL, sizeof(int)*DATA_SIZE*DATA_SIZE, PROT_READ | PROT_WRITE, 
+// 		  MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
 void add_test(char* (*test_func)()) {
     if(num_tests == MAX_TESTS) {
@@ -128,13 +131,14 @@ char* test5() {
 }
 
 void run_test(char* (fn)()) {
+  alarm(3);
   char* res = fn();
   if(res == TEST_PASSED) {
     exit(0);
-    printf("Test Passed\n");
+    //printf("Test Passed\n");
   } else {
     exit(1);
-    printf("Test Failed: %s\n",res);
+    //printf("Test Failed: %s\n",res);
   }
 }
 
@@ -167,10 +171,10 @@ void run_all_tests() {
 //    }
 
   
+  setup();
   for (int i = 0; i < num_tests; i++) {
     int pid = fork();
     if (pid == 0) {
-      setup();
       run_test(test_funcs[i]);    
       printf("test done\n");
     }   
@@ -179,23 +183,32 @@ void run_all_tests() {
     int stat;
     wait(&stat);
     if (!WIFEXITED(stat)) {
-      printf("test crashed");
+      printf("test crashed\n");
     } else {
-      if (stat == 0) {
+      if (WEXITSTATUS(stat) == 0) {
         printf("test passed\n");
-      } else {
+      } else if (WEXITSTATUS(stat) == 1){
         printf("test failed\n");
+      } else if (WEXITSTATUS(stat) == 2) {
+          printf("test timed out\n");
+      } else {
+          printf("something went wrong\n");
       }
     }
   }
 }
 
+void catch_alarm() {
+  exit(2);
+}
+
 void main() {
+    signal(SIGALRM, catch_alarm);
     add_test(test1);
     add_test(test2);
     add_test(test3);
-    // add_test(test4); // uncomment for Step 4
-    // add_test(test5); // uncomment for Step 5
+    add_test(test4); // uncomment for Step 4
+    add_test(test5); // uncomment for Step 5
     run_all_tests();
     
 }
