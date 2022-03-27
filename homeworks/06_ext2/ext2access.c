@@ -39,6 +39,8 @@ void load_ext2_metadata(int fd, struct os_fs_metadata_t* metadata) {
   struct os_superblock_t superblock_data;
 
   // YOUR LOADING CODE HERE
+  lseek(fd, 1024, SEEK_SET);
+  read(fd, &superblock_data, sizeof(struct os_superblock_t));
   
   // 2. All the data we need is in the superblock and groupblock
   // descriptor table (right after the superblock, but we need to read
