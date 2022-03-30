@@ -202,7 +202,7 @@ os_bool_t fetch_inode(os_uint32_t inode_number, int fd,
   // blockgroup in "metadata".  Also note that the first inode
   // has number 1, **not** number 0.  (Thanks a lot, ext2!)
 
-  os_uint32_t blockgroup_num = floor((inode_number-1)/metadata->inodes_per_group);
+  os_uint32_t blockgroup_num = (inode_number-1)/metadata->inodes_per_group;
   // Step 2.  Figure out the offset of the inode within
 
   // the group (i.e., is this the 0th inode in the group?
@@ -213,7 +213,7 @@ os_bool_t fetch_inode(os_uint32_t inode_number, int fd,
   // that the blockgroup number that you calculated makes sense, given
   // how many blockgroups are on this filesystem.  If it is not valid,
   // return FALSE.
-  if (blockgroup_num > metadata -> num_blockgroups) {
+  if (blockgroup_num >= metadata -> num_blockgroups) {
     return FALSE;
   }
 
@@ -237,14 +237,14 @@ os_bool_t fetch_inode(os_uint32_t inode_number, int fd,
 
   // Step 5.  Calculate the byte offset of this inode within the
   // block that it lives on.
-  os_uint32_t byte_offset = sizeof(struct os_inode_t)*(offset_within_blockgroup);
+  os_uint32_t byte_offset = sizeof(struct os_inode_t)*(offset_within_blockgroup%num_inodes_per_block);
 
   // Step 6. Use lseek() and read() to read the inode off of disk
   // and into "inode", given the inodes block number and
   // byte offset within that block that you calculated earlier.
 
   lseek(fd, inode_block_num*(metadata->block_size)+byte_offset, SEEK_SET);
-  read(fd, &returned_inode, sizeof(struct os_inode_t));
+  read(fd, returned_inode, sizeof(struct os_inode_t));
   // All done!
   return TRUE;
 }
@@ -541,7 +541,9 @@ os_bool_t file_read(int fd, int file_inode_num,
   // Step 5.  Loop through the blocks of the file, reading in
   // the file's data using file_blockread.  If anything goes wrong,
   // free the allocated buffer and return FALSE.
-
+  for (int blocknum = 0; blocknum < metadata->num_blocks; blocknum++) {
+    file_blockread(*inode, fd, metadata, blocknum, *buffer);
+  }
   // All done! Return true.
   return TRUE;
 }
