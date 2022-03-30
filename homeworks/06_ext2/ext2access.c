@@ -201,17 +201,21 @@ os_bool_t fetch_inode(os_uint32_t inode_number, int fd,
   // Remember that the you stashed the number of inodes per
   // blockgroup in "metadata".  Also note that the first inode
   // has number 1, **not** number 0.  (Thanks a lot, ext2!)
-  os_uint32_t blockgroup_num = 0xDEADBEEF;  // you must fix this.
 
+  os_uint32_t blockgroup_num = floor((inode_number-1)/metadata->inodes_per_group);
   // Step 2.  Figure out the offset of the inode within
+
   // the group (i.e., is this the 0th inode in the group?
   // the 10th?  the 100th?)
-  os_uint32_t offset_within_blockgroup = 0xDEADBEEF;  // you must fix this.
+  os_uint32_t offset_within_blockgroup = (inode_number-1)%metadata->inodes_per_group;
 
   // Step 3.  Make sure this inode number is valid -- i.e., verify
   // that the blockgroup number that you calculated makes sense, given
   // how many blockgroups are on this filesystem.  If it is not valid,
   // return FALSE.
+  if (blockgroup_num > metadata -> num_blockgroups) {
+    return FALSE;
+  }
 
   // Step 4.  Calculate the block # that this inode lives in.
   // Remember that the layout of the blockgroup is stored within that
@@ -223,9 +227,9 @@ os_bool_t fetch_inode(os_uint32_t inode_number, int fd,
   // division.
 
   // we've provided you the code that does this.
+
   os_uint32_t num_inodes_per_block =
     metadata->block_size / sizeof(struct os_inode_t);
-
   os_uint32_t inode_block_num =
     offset_within_blockgroup / num_inodes_per_block;
   inode_block_num +=
@@ -233,11 +237,14 @@ os_bool_t fetch_inode(os_uint32_t inode_number, int fd,
 
   // Step 5.  Calculate the byte offset of this inode within the
   // block that it lives on.
+  os_uint32_t byte_offset = sizeof(struct os_inode_t)*(offset_within_blockgroup);
 
   // Step 6. Use lseek() and read() to read the inode off of disk
   // and into "inode", given the inodes block number and
   // byte offset within that block that you calculated earlier.
-  
+
+  lseek(fd, inode_block_num*(metadata->block_size)+byte_offset, SEEK_SET);
+  read(fd, &returned_inode, sizeof(struct os_inode_t));
   // All done!
   return TRUE;
 }
@@ -308,6 +315,10 @@ void calculate_offsets(os_uint32_t blocknum,
   // and store them in the appropriate arguments.  Store -1 in
   // the other two.
   if (blocks_left < (blocksize/4)*(blocksize/4)) {
+    *double_index = floor(blocks_left/(blocksize/4)); 
+    *indirect_index = blocks_left%(blocksize/4);
+    *direct_num = *triple_index = -1;
+    return;
     // add some code here
   }
   blocks_left -= (blocksize/4) * (blocksize/4);
@@ -325,6 +336,11 @@ void calculate_offsets(os_uint32_t blocknum,
   // the other argument.
   if (blocks_left < (blocksize/4)*(blocksize/4)*(blocksize/4)) {
     //add some code here
+    *triple_index = floor(blocks_left/(blocksize*blocksize/16));
+    *double_index = ((os_int32_t)floor(blocks_left/(blocksize/4)))%(blocksize/4);
+    *indirect_index = blocks_left%(blocksize/4);
+    *direct_num = -1;
+    return;
   }
 
   // should never get here!
@@ -486,6 +502,7 @@ os_bool_t file_read(int fd, int file_inode_num,
   // fetch_inode().  [Hint: pass the "inode" argument into fetch_inode, so
   // that fetch_inode() reads the inode into the structure passed to
   // this function by the caller.]
+  fetch_inode(file_inode_num, fd, metadata, inode);
 
   // Step 2.  We'll only read links, regular files, and directories.
   // The OS is the only thing that knows how to interpret the other
@@ -496,6 +513,9 @@ os_bool_t file_read(int fd, int file_inode_num,
   // inode->i_mode & EXT2_S_IFREG is non-zero.
 
   // Step 3.  If the file size is 0, return TRUE.
+  if (metadata->disk_size == 0) {
+    return TRUE;
+  }
 
   // Step 4.  Allocate space for the file.  Be sure to verify that
   // malloc worked!  (If not, return FALSE.)  Store the pointer to the
@@ -555,16 +575,27 @@ os_uint32_t scan_dir(unsigned char *directory,
     // directory).  If so, skip to the next iteration of the while
     // loop (using "continue;") after properly incrementing
     // current_offset (use rec_len).
+      if (current_entry_p->inode == 0) {
+        continue;
+      }
 
     // Step 3.  Compare the name in the directory entry to
     // "filename".  Note that you cannot rely on the name in
     // the directory entry to be NULL terminated, so you can't
     // use strcmp().  If the name matches, you're done -- return its
     // inode number.
+      for (int i = 0; i < strlen(filename); i++) {
+        if (filename[i] != current_entry_p->file_name[i]) {
+          current_offset += strlen(filename);
+          continue;
+        }
+      }
+      return current_entry_p->inode;
 
     // Step 4.  If you didn't find it, add the appropriate amount to
     // current_offset, and fall into the next iteration of the while
     // loop.
+    // see earlier
   }
 
   // Step N:  fell off the end of the directory file, and didn't find
