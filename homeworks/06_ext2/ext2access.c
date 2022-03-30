@@ -586,18 +586,22 @@ os_uint32_t scan_dir(unsigned char *directory,
     // the directory entry to be NULL terminated, so you can't
     // use strcmp().  If the name matches, you're done -- return its
     // inode number.
+      int same = 0;
       for (int i = 0; i < strlen(filename); i++) {
         if (filename[i] != current_entry_p->file_name[i]) {
-          current_offset += strlen(filename);
-          continue;
+          same++;
         }
       }
-      return current_entry_p->inode;
 
     // Step 4.  If you didn't find it, add the appropriate amount to
     // current_offset, and fall into the next iteration of the while
     // loop.
     // see earlier
+      if (same != 0) {
+        current_offset += strlen(filename);
+        continue;
+      }
+      return current_entry_p->inode;
   }
 
   // Step N:  fell off the end of the directory file, and didn't find
