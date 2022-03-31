@@ -541,8 +541,14 @@ os_bool_t file_read(int fd, int file_inode_num,
   // Step 5.  Loop through the blocks of the file, reading in
   // the file's data using file_blockread.  If anything goes wrong,
   // free the allocated buffer and return FALSE.
-  for (int blocknum = 0; blocknum < metadata->num_blocks; blocknum++) {
-    file_blockread(*inode, fd, metadata, blocknum, *buffer);
+  unsigned char *temp_buff = *buffer;
+  for (int blocknum = 0; blocknum < malloc_size/metadata->block_size; blocknum++) {
+    int num_read = file_blockread(*inode, fd, metadata, blocknum, temp_buff);
+    if (num_read == -1) {
+      printf("shouldnt return false here :( \n");
+      return FALSE;
+    }
+    temp_buff+=num_read;
   }
   // All done! Return true.
   return TRUE;
@@ -570,7 +576,6 @@ os_uint32_t scan_dir(unsigned char *directory,
       // if so, it should be safe to do this
 
       struct os_direntry_t *current_entry_p = (struct os_direntry_t *) (directory + current_offset);
-
       
     // Step 2.  If inode of the current record is 0, then the
     // entry is invalid (e.g., that file was deleted from the
@@ -578,6 +583,7 @@ os_uint32_t scan_dir(unsigned char *directory,
     // loop (using "continue;") after properly incrementing
     // current_offset (use rec_len).
       if (current_entry_p->inode == 0) {
+        current_offset+=current_entry_p->rec_len;
         continue;
       }
 
@@ -587,9 +593,10 @@ os_uint32_t scan_dir(unsigned char *directory,
     // use strcmp().  If the name matches, you're done -- return its
     // inode number.
       int same = 0;
-      for (int i = 0; i < strlen(filename); i++) {
-        if (filename[i] != current_entry_p->file_name[i]) {
+      for (int i = 0; i < current_entry_p -> name_len; i++) {
+        if (strlen(filename) != current_entry_p->name_len || filename[i] != current_entry_p->file_name[i]) {
           same++;
+          break;
         }
       }
 
@@ -598,7 +605,7 @@ os_uint32_t scan_dir(unsigned char *directory,
     // loop.
     // see earlier
       if (same != 0) {
-        current_offset += strlen(filename);
+        current_offset += current_entry_p->rec_len;
         continue;
       }
       return current_entry_p->inode;
