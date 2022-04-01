@@ -649,8 +649,16 @@ os_uint32_t path_to_inode_num(char* path, int fd, struct os_fs_metadata_t *metad
 
   //for each / seperated entry in the path
   //1. Use file_read to read the current directory data
+  os_uint32_t inode_num = root;
+  int i = 0;
+  int loc = 0;
+  while (i < strlen(path)+1) {
+    file_read(fd, inode_num, metadata, &inode, &buffer);
+    loc = scan_dir(buffer, inode.i_size, &path_copy[i]);
+    i++;
+  }
   //2. Use scan_dir to search for the entry you're looking for
   //3. That will become the directory you'll use in the next iteration
-  return 0;
+  return loc;
   
 }
