@@ -21,19 +21,16 @@ Makefile provided.
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h>
-int target, i = 0;
+unsigned long long int target, i = 0;
 int numThreads;
 
 void *factor_runner(void* ptr) {
-  int* start = (int*) ptr;
-  printf("thread %d started up to target %d starting from %d\n", *start, target, *start);
-  for (int i = *start; i <= target/2; i = i + numThreads) {
-    if (i == 0)  {
-      continue;
-    }
-    printf("thread %d testing %d\n", *start, i);
+  unsigned long long int* start = (unsigned long long int*) ptr;
+  printf("thread %llu started up to target %llu starting from %llu\n", *start, target, *start);
+  for (unsigned long long int i = *start; i <= target/2; i = i + numThreads) {
+    printf("thread %llu testing %llu\n", *start, i);
     if (target % i == 0) {
-      printf("%d is a factor\n", i);
+      printf("%llu is a factor\n", i);
     }
   }
   pthread_exit(NULL);
@@ -43,7 +40,7 @@ void *factor_runner(void* ptr) {
 int main(void) {
   /* you can ignore the linter warning about this */
   printf("Give a number to factor.\n");
-  scanf("%d", &target);
+  scanf("%llu", &target);
 
   printf("How man threads should I create?\n");
   scanf("%d", &numThreads);
