@@ -81,7 +81,7 @@ void MergeSort(int array[], int inputLength) {
 }
 
 // you might want some globals, put them here
-
+int vals_per_thread;
 // here's a global I used you might find useful
 char* descriptions[] = {"brute force","bubble","merge"};
 
@@ -89,8 +89,19 @@ char* descriptions[] = {"brute force","bubble","merge"};
 // parameters and calls the correct sorting function
 //
 // you can do it a different way but I think this is easiest
+// void* thread_dispatch(void* data) {
+//   int raw[] = ((int *)data);
+//   int sort_data[vals_per_thread];
+//   for (int i = 0; i < vals_per_thread; i++) {
+//     sort_data[i] = raw[i+1];
+//   }
+// }
 void* thread_dispatch(void* data) {
-
+  int raw[] = ((int *)data);
+  int sort_data[vals_per_thread];
+  for (int i = 0; i < vals_per_thread; i++) {
+    sort_data[i] = raw[i];
+  }
 }
 
 int main(int argc, char** argv) {
@@ -110,7 +121,7 @@ int main(int argc, char** argv) {
 
     // I'm reading the number of values you want per thread
     // off the command line
-    int vals_per_thread = atoi(argv[2]);
+    vals_per_thread = atoi(argv[2]);
     if(vals_per_thread <= 0 || vals_per_thread > MAX_VALS_PER_THREAD) {
         printf("bad vals_per_thread value %d\n", vals_per_thread);
         exit(1);
@@ -132,7 +143,18 @@ int main(int argc, char** argv) {
         // inspect and ensure you're sorting everything
     }
 
+
     // create your threads here
+    pthread_t threads[n];
+    for (int i = 0; i < n; i++) { //n = num threads
+      // int send_data[vals_per_thread+1];
+      // send_data[0] = i%3; // select which sort
+      // for (int j = 0; j < vals_per_thread; j++) {
+      //   send_data[j+1] = data_array[i*vals_per_thread+j]; // data to be sorted
+      // }
+      // pthread_create(&threads[i], NULL, thread_dispatch, &send_data);
+      pthread_create(&threads[i], NULL, thread_dispatch, &data_array[i*vals_per_thread]);
+    }
 
     // wait for them to finish
 
