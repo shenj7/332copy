@@ -14,6 +14,12 @@
 
 
 /* other global variable instantiations can go here */
+int brutetotal = 0;
+int brutetrials = 0;
+int bubbletotal = 0;
+int bubbletrials = 0;
+int mergetotal = 0;
+int mergetrials = 0;
 
 /* Uses a brute force method of sorting the input list. */
 void BruteForceSort(int inputList[], int inputLength) {
@@ -108,21 +114,31 @@ void* thread_dispatch(void* data) {
     //sort
     printf("sorting with merge\n");
     MergeSort(data_to_sort, vals_per_thread);
+    gettimeofday(&stopt, NULL);
+    usecs_passed = stopt.tv_usec - startt.tv_usec;
+    mergetotal += usecs_passed;
+    mergetrials++;
   } else
   if (select == 1) {
     //sort
     printf("sorting with brute force\n");
     BruteForceSort(data_to_sort, vals_per_thread);
+    gettimeofday(&stopt, NULL);
+    usecs_passed = stopt.tv_usec - startt.tv_usec;
+    brutetotal += usecs_passed;
+    brutetrials++;
   } else
   if (select == 2) {
     //sort
     printf("sorting with bubble\n");
     BubbleSort(data_to_sort, vals_per_thread);
+    gettimeofday(&stopt, NULL);
+    usecs_passed = stopt.tv_usec - startt.tv_usec;
+    bubbletotal += usecs_passed;
+    bubbletrials++;
   } else {
     printf("we shouldnt be here >:(");
   }
-  gettimeofday(&stopt, NULL);
-  usecs_passed = stopt.tv_usec - startt.tv_usec;
   printf("sorted\n");
   pthread_exit(NULL);
 }
@@ -185,6 +201,17 @@ int main(int argc, char** argv) {
     }
 
     // print out the algorithm summary statistics
+    printf("Bubble sort total time: %d\n", bubbletotal);
+    printf("Bubble sort total trials: %d\n", bubbletrials);
+    printf("Bubble sort average time: %d\n", bubbletotal/bubbletrials);
+
+    printf("Merge sort total time: %d\n", mergetotal);
+    printf("Merge sort total trials: %d\n", mergetrials);
+    printf("Merge sort average time: %d\n", mergetotal/mergetrials);
+
+    printf("Brute force sort total time: %d\n", brutetotal);
+    printf("Brute force sort total trials: %d\n", brutetrials);
+    printf("Brute force sort average time: %d\n", brutetotal/brutetrials);
 
     // print out the result array so you can see the sorting is working
     // you might want to comment this out if you're testing with large data sets
