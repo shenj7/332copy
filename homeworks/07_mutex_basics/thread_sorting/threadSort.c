@@ -97,11 +97,34 @@ char* descriptions[] = {"brute force","bubble","merge"};
 //   }
 // }
 void* thread_dispatch(void* data) {
-  int raw[] = ((int *)data);
-  int sort_data[vals_per_thread];
-  for (int i = 0; i < vals_per_thread; i++) {
-    sort_data[i] = raw[i];
+  struct timeval startt, stopt;
+  suseconds_t usecs_passed;
+  gettimeofday(&startt, NULL);
+  // some code that takes time
+
+  int* data_to_sort = (int*) data;
+  int select = ((((int*)data)[0])/vals_per_thread)%3;
+  if (select == 0) {
+    //sort
+    printf("sorting with merge\n");
+    MergeSort(data_to_sort, vals_per_thread);
+  } else
+  if (select == 1) {
+    //sort
+    printf("sorting with brute force\n");
+    BruteForceSort(data_to_sort, vals_per_thread);
+  } else
+  if (select == 2) {
+    //sort
+    printf("sorting with bubble\n");
+    BubbleSort(data_to_sort, vals_per_thread);
+  } else {
+    printf("we shouldnt be here >:(");
   }
+  gettimeofday(&stopt, NULL);
+  usecs_passed = stopt.tv_usec - startt.tv_usec;
+  printf("sorted\n");
+  pthread_exit(NULL);
 }
 
 int main(int argc, char** argv) {
@@ -157,6 +180,9 @@ int main(int argc, char** argv) {
     }
 
     // wait for them to finish
+    for (int i = 0; i < n; i++) {
+      pthread_join(threads[i], NULL);
+    }
 
     // print out the algorithm summary statistics
 
