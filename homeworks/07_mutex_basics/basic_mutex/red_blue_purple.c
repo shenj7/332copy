@@ -42,28 +42,38 @@
 
  */
 
+pthread_mutex_t mutex;
+
 void redCommand() {
+    pthread_mutex_lock(&mutex);
     printf("Start: Red\n");
     usleep(100);
     printf("End  : Red\n");
+    pthread_mutex_unlock(&mutex);
 }
 
 void blueCommand() {
+    pthread_mutex_lock(&mutex);
     printf("Start: Blue\n");
     usleep(100);
     printf("End  : Blue\n");
+    pthread_mutex_unlock(&mutex);
 }
 
 void purpleCommand() {
+    pthread_mutex_lock(&mutex);
     printf("Start: Blue\n");
     printf("Start: Red\n");
     usleep(100);
     printf("End  : Red\n");
     printf("End  : Blue\n");
+    pthread_mutex_unlock(&mutex);
 }
 
 void whiteCommand() {
+    pthread_mutex_lock(&mutex);
     usleep(100);
+    pthread_mutex_unlock(&mutex);
 }
 
 void* thread1(void* p) {
@@ -115,6 +125,8 @@ int main(int argc, char **argv) {
         pthread_join(threads[i], NULL);
     }
 
+    pthread_mutex_destroy(&mutex);
+    
     printf("Everything finished\n");
 
     return 0;
