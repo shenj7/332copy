@@ -2,12 +2,26 @@
 #include <pthread.h>
 #include <unistd.h>
 
+int current_thread = 1;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
 void *thread(void *arg)
 {
         int *num = (int *)arg;
+        if (current_thread != *num) {
+          pthread_cond_wait(&cond, &lock);
+        }
+
+        pthread_mutex_lock(&lock);
+
         printf("%d wants to enter the critical section\n", *num);
 
+        current_thread++;
+
         printf("%d is finished with the critical section\n", *num);
+        pthread_mutex_unlock(&lock);
+        pthread_cond_signal(&cond);
 
         return NULL;
 }
