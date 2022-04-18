@@ -9,19 +9,20 @@ pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 void *thread(void *arg)
 {
         int *num = (int *)arg;
-        if (current_thread != *num) {
+        pthread_mutex_lock(&lock);
+        
+        while (current_thread != *num) {
           pthread_cond_wait(&cond, &lock);
         }
 
-        pthread_mutex_lock(&lock);
 
         printf("%d wants to enter the critical section\n", *num);
 
         current_thread++;
 
         printf("%d is finished with the critical section\n", *num);
-        pthread_mutex_unlock(&lock);
         pthread_cond_signal(&cond);
+        pthread_mutex_unlock(&lock);
 
         return NULL;
 }
@@ -36,8 +37,9 @@ main(int argc, char **argv)
         for(i = 0; i < 4; ++i) {
                 pthread_create(&threads[i], NULL, thread, &nums[i]);
 
-                if(i == 2)
+                if(i == 2) {
                         sleep(3);
+                }
         }
 
         for(i = 0; i < 4; ++i) {
