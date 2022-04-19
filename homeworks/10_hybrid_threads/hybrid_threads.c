@@ -31,7 +31,11 @@ annoying.  So please leave this value as it is and use MAX_THREADS
 (not the hardcorded value 5) in your code.
 */
 #define MAX_THREADS 5
-
+#define INVALID 0
+#define PAUSED 1
+#define RUNNING 2
+#define FINISHED 3
+#define CREATING 4
 // storage for your thread data
 ucontext_t threads[MAX_THREADS];
 
@@ -43,7 +47,8 @@ bool thread_finished[MAX_THREADS];
 int find_next_unused(), find_next_used();
 bool check_finished();
 void implicit_fn(void (*fun_ptr)(void*), void* parameter);
-bool free_thread[MAX_THREADS];
+bool free_thread[MAX_THREADS]; // thread_state
+int thread_state[MAX_THREADS];
 
 /*
 initialize_basic_threads
