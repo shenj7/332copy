@@ -12,15 +12,18 @@ void *thread(void *arg)
 {
   pthread_mutex_lock(&lock);
   current++;
-  while (current >= max) {
-    pthread_cond_wait(&cond, &lock);
-  }
 	char *letter = (char *)arg;
 	printf("%c wants to enter the critical section\n", *letter);
 
+  while (current > max) {
+    pthread_cond_wait(&cond, &lock);
+  }
+
+  pthread_mutex_unlock(&lock);
 	printf("%c is in the critical section\n", *letter);
 	sleep(1);
 	printf("%c has left the critical section\n", *letter);
+  pthread_mutex_lock(&lock);
   current--;
   pthread_cond_signal(&cond);
   pthread_mutex_unlock(&lock);
@@ -47,5 +50,6 @@ main(int argc, char **argv)
 
 	printf("Everything finished...\n");
 
+  pthread_mutex_destroy(&lock);
 	return 0;
 }
