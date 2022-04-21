@@ -18,7 +18,7 @@ producer(void *arg)
 
         for(i = 0; i < 10; ++i) {
           pthread_mutex_lock(&lock);
-          while (last_valid_index+1 == BUFFERSIZE) {
+          while (last_valid_index+1 >= BUFFERSIZE) {
             pthread_cond_wait(&notfull, &lock);
           }
           //printf("last valid index: %d\n", last_valid_index);
@@ -31,6 +31,7 @@ producer(void *arg)
           pthread_cond_signal(&notempty);
           pthread_mutex_unlock(&lock);
         }
+        printf("penis\n");
 
         return NULL;
 }
@@ -42,7 +43,7 @@ consumer(void *arg)
 
         for(i = 0; i < 10; ++i) {
           pthread_mutex_lock(&lock);
-          while (last_valid_index == 0) {
+          while (last_valid_index < 0) {
             pthread_cond_wait(&notempty, &lock);
           }
                 sleep(1);
@@ -53,7 +54,7 @@ consumer(void *arg)
           pthread_cond_signal(&notfull);
           pthread_mutex_unlock(&lock);
         }
-
+        printf("succ\n");
         return NULL;
 }
 
@@ -74,6 +75,7 @@ main(int argc, char **argv)
         pthread_join(p2, NULL);
         pthread_join(c1, NULL);
         pthread_join(c2, NULL);
+        pthread_mutex_destroy(&lock);
 
         printf("Everything finished...\n");
 }
