@@ -30,7 +30,7 @@ would make writing test code that exploits the thread max more
 annoying.  So please leave this value as it is and use MAX_THREADS
 (not the hardcorded value 5) in your code.
 */
-#define MAX_THREADS 5
+#define MAX_THREADS 1000
 #define INVALID 0
 #define PAUSED 1
 #define RUNNING 2
@@ -47,7 +47,7 @@ bool thread_finished[MAX_THREADS];
 int find_next_unused(), find_next_used();
 bool check_finished();
 void implicit_fn(void (*fun_ptr)(void*), void* parameter);
-bool free_thread[MAX_THREADS]; // thread_state
+bool free_thread[MAX_THREADS]; // change to thread_state
 int thread_state[MAX_THREADS];
 
 /*
