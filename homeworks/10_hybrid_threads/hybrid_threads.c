@@ -31,23 +31,24 @@ annoying.  So please leave this value as it is and use MAX_THREADS
 (not the hardcorded value 5) in your code.
 */
 #define MAX_THREADS 1000
-#define INVALID 0
+#define OPEN 0 // unmalloced
 #define PAUSED 1
 #define RUNNING 2
 #define FINISHED 3
-#define CREATING 4
+#define CREATED 4 //malloced
 // storage for your thread data
 ucontext_t threads[MAX_THREADS];
 
 
 // add additional constants and globals here as you need
-ucontext_t sch;
-int currthread = 0;
-bool thread_finished[MAX_THREADS];
+__thread ucontext_t sch;
+// int currthread = 0; // make thread-local
+__thread int currthread = 0;
+// bool thread_finished[MAX_THREADS];
 int find_next_unused(), find_next_used();
 bool check_finished();
 void implicit_fn(void (*fun_ptr)(void*), void* parameter);
-bool free_thread[MAX_THREADS]; // change to thread_state
+// bool free_thread[MAX_THREADS]; // change to thread_state
 int thread_state[MAX_THREADS];
 
 /*
@@ -72,8 +73,9 @@ blank.
 void initialize_basic_threads() {
   printf("initializing\n");
   for (int x  = 0; x < MAX_THREADS; x++) {
-    thread_finished[x] = true;
-    free_thread[x] = false;
+    // thread_finished[x] = true;
+    // free_thread[x] = false;
+    thread_state[x] = OPEN;
   }
   printf("finished init\n");
 }
@@ -143,7 +145,8 @@ schedule_threads();
 void create_new_parameterized_thread(void (*fun_ptr)(void*), void* parameter) {
   int openthread = find_next_unused();
   printf("creating new thread at %d\n", openthread);
-  thread_finished[openthread] = false;
+  // thread_finished[openthread] = false;
+  thread_state[openthread] = CREATED;
   getcontext(&threads[openthread]);
   threads[openthread].uc_link = 0;
   threads[openthread].uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
@@ -168,9 +171,13 @@ void create_new_parameterized_thread(void (*fun_ptr)(void*), void* parameter) {
  */
 void free_threads() {
   for (int i = 0; i < MAX_THREADS; i++) {
-    if (free_thread[i]) {
+    // if (free_thread[i]) {
+    //   free(threads[i].uc_stack.ss_sp);
+    //   free_thread[i] = false;
+    // }
+    if (thread_state[i] == FINISHED) {
       free(threads[i].uc_stack.ss_sp);
-      free_thread[i] = false;
+      thread_state[i] = OPEN;
     }
   }
 }
@@ -209,7 +216,10 @@ printf("All threads finished");
 void schedule_hybrid_threads(int numthreads) {
   while (!check_finished()) {
     free_threads();
-    printf("%d, %d, %d, %d, %d\n", thread_finished[0], thread_finished[1], thread_finished[2], thread_finished[3], thread_finished[4]);
+    // printf("%d, %d, %d, %d, %d\n", thread_finished[0], thread_finished[1], thread_finished[2], thread_finished[3], thread_finished[4]);
+    if (find_next_used() == -1) {
+      continue;
+    }
     printf("not done: switching to %d\n", find_next_used());
     currthread = find_next_used();
     printf("current thread: %d\n", currthread);
@@ -263,7 +273,9 @@ void thread_function()
 */
 void yield() {
   printf("yielding thread %d to scheduler\n", currthread);
+  thread_state[currthread] = PAUSED;
   swapcontext(&threads[currthread], &sch);
+  thread_state[currthread] = RUNNING;
   printf("thread %d back from scheduler\n", currthread);
 }
 
@@ -293,8 +305,9 @@ void thread_function()
 */
 void finish_thread() {
   printf("finished thread %d\n", currthread);
-  thread_finished[currthread] = true;
-  free_thread[currthread] = true;
+  // thread_finished[currthread] = true;
+  thread_state[currthread] = FINISHED;
+  // free_thread[currthread] = true;
   swapcontext(&threads[currthread], &sch);
 }
 
@@ -320,7 +333,8 @@ void implicit_fn(void (*fun_ptr)(void*), void* parameter) {
 int find_next_unused() {
   for (int i = 0; i < MAX_THREADS; i++) {
     int check = (currthread+i)%MAX_THREADS;
-    if (thread_finished[check]) {
+    // if (thread_finished[check]) {
+    if (thread_state[check] == OPEN) {
       return check;
     }
   }
@@ -339,7 +353,8 @@ int find_next_used() {
   for (int i = 0; i < MAX_THREADS; i++) {
     int check = (currthread+i+1)%MAX_THREADS;
 //    int check = (currthread+i)%MAX_THREADS;
-    if (!thread_finished[check]) {
+    // if (!thread_finished[check]) {
+    if (thread_state[check] != OPEN) {
       return check;
     }
   }
@@ -355,9 +370,8 @@ int find_next_used() {
  */
 
 bool check_finished() {
-  printf("next used:%d\n", find_next_used());
   if (find_next_used() == -1) {
-    printf("finished");
+    printf("finished\n");
   }
   return find_next_used() == -1;
 }
