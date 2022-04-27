@@ -32,11 +32,13 @@ int initt() {
 
 int findmax() {
 	int max = 0;
+	pthread_mutex_lock(&lock);
 	for (int i = 0; i < max_threads; i++) {
 		if (currentthreads[i] > max) {
 			max = currentthreads[i];
 		}
 	}
+	pthread_mutex_unlock(&lock);
 	return max;
 
 }
@@ -54,13 +56,14 @@ void *thread(void *arg)
 	while (findmax() != *num) {
 		pthread_cond_wait(&cond, &lock);
 	}
+	printf("max:%d\n", findmax());
+	currentthreads[tindex] = 0;
 	pthread_mutex_unlock(&lock);
 
 	pthread_mutex_lock(&lock);
 	printf("%d has entered the critical section\n", *num);
 	sleep(1);
 	printf("%d is finished with the critical section\n", *num);
-	currentthreads[tindex] = 0;
 	pthread_mutex_unlock(&lock);
 	pthread_cond_broadcast(&cond);
 
