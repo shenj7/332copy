@@ -32,6 +32,9 @@
  **/
 
 int numLoaves;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t bread = PTHREAD_COND_INITIALIZER;
+pthread_cond_t nobread = PTHREAD_COND_INITIALIZER;
 
 void *littleRedHenThread(void *arg) {
 	char *name = (char*)arg;
@@ -39,9 +42,15 @@ void *littleRedHenThread(void *arg) {
 
 	for (batch = 1; batch <= 6; batch++) {
 		sleep(2);  // just makes it obvious that it won't work without
+		while (numLoaves > 0) {
+			pthread_cond_wait(&nobread, &lock);
+		}
 		// condition variables
+		pthread_mutex_lock(&lock);
 		numLoaves += 7;
+		pthread_mutex_unlock(&lock);
 		printf("%-20s: A fresh batch of bread is ready.\n", name);
+		pthread_cond_broadcast(&bread);
 	}
 
 	printf("%-20s: I'm fed up with feeding you lazy animals! "
@@ -53,12 +62,29 @@ void *otherAnimalThread(void *arg) {
 	char *name = (char*)arg;
 	int numLoavesEaten = 0;
 	while (numLoavesEaten < NUM_LOAVES_TO_EAT) {
+		while (numLoaves == 0) {
+			// printf("%-20s is waiting\n", name);
+			pthread_cond_wait(&bread, &lock);
+		}
 		if (numLoaves <= 0) {
 			printf("%-20s: Hey, Little Red Hen, make some more bread!\n", name);
 		}
+		pthread_mutex_unlock(&lock);
+		pthread_mutex_lock(&lock);
+		// printf("numloaves: %d\n", numLoaves);
+		// printf("got lock");
 		numLoaves--;
+		pthread_mutex_unlock(&lock);
+		// printf("after numloaves: %d\n", numLoaves);
 		printf("%-20s: Mmm, this loaf is delicious.\n", name);
 		numLoavesEaten++;
+		// printf("locking\n");
+		// pthread_mutex_lock(&lock);
+		if (numLoaves == 0) {
+			pthread_cond_signal(&nobread);
+		}
+		// pthread_mutex_unlock(&lock);
+		// printf("unlocked\n");
 		if (random() > random()) {  // Adds variety to output
 			sleep(1);
 		}
@@ -84,5 +110,6 @@ int main(int argc, char **argv) {
 	pthread_join(duck, NULL);
 	pthread_join(hen, NULL);
 
+	pthread_mutex_destroy(&lock);
 	printf("Everything finished.\n");
 }

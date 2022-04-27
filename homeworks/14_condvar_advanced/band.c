@@ -4,6 +4,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 /**
   Imagine a group of friends are getting together to play music, but
@@ -57,16 +58,53 @@ int GUIT = 2;
 
 char* names[] = {"drummer", "singer", "guitarist"};
 
+//pthread_mutex_t drumlock;
+//pthread_mutex_t singlock;
+//pthread_mutex_t glock;
+int band[] = {0, 0, 0};
+int bandcreated = 0;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t singlein = PTHREAD_COND_INITIALIZER;
+pthread_cond_t totalin = PTHREAD_COND_INITIALIZER;
 
-
+int check_band() {
+  if (band[0] == 1 && band[1] == 1 && band[2] == 1) {
+    pthread_cond_broadcast(&totalin);
+    return 1;
+  } else {
+    return 0;
+  }
+}
 // because the code is similar, we'll just have one kind of thread
 // and we'll pass its kind as a parameter
 void* friend(void * kind_ptr) {
 	int kind = *((int*) kind_ptr);
 	printf("%s arrived\n", names[kind]);
+  while (band[kind] == 1) {
+    pthread_cond_wait(&singlein, &lock);
+  }
+  pthread_mutex_unlock(&lock);
+  // pthread_mutex_lock(&lock);
+  band[kind]++;
+  // printf("first kind: %d\n", kind);
+  // printf("first band[kind] = %d\n", band[kind]);
+  // pthread_mutex_unlock(&lock);
+  // printf("single\n");
+  while (check_band() == 0) {
+    pthread_cond_wait(&totalin, &lock);
+  }
+  pthread_mutex_unlock(&lock);
+  // printf("all\n");
 	printf("%s playing\n", names[kind]);
 	sleep(1);
 	printf("%s finished playing\n", names[kind]);
+  pthread_mutex_lock(&lock);
+  band[kind]--;
+  bandcreated = 0;
+  pthread_mutex_unlock(&lock);
+  // printf("kind: %d\n", kind);
+  // printf("band[kind] = %d\n", band[kind]);
+  pthread_cond_signal(&singlein);
 
 	return NULL;
 }
@@ -97,7 +135,7 @@ int main(int argc, char **argv) {
 	for (int i = 0; i < friend_count; i++) {
 		pthread_join(friends[i], NULL);
 	}
-
+	pthread_mutex_destroy(&lock);
 	printf("Everything finished.\n");
 
 }

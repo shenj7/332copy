@@ -29,27 +29,76 @@
   This is similar to the readers/writers problem BTW.
  **/
 
-void* carpenter(void * ignored) {
+#define carp 0
+#define paint 1
+#define deco 2
+int current = 0;
+int numworking = 0;
+// int nums[3] = {0, 0, 0};
 
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+void* carpenter(void * ignored) {
+	while (current != 0) {
+		pthread_cond_wait(&cond, &lock);
+		printf("current: %d\n", current);
+	}
+	current = 0;
+	numworking++;
+	pthread_mutex_unlock(&lock);
 	printf("starting carpentry\n");
 	sleep(1);
 	printf("finished carpentry\n");
+	pthread_mutex_lock(&lock);
+	numworking--;
+	pthread_mutex_unlock(&lock);
+	if (numworking == 0) {
+		current = current+1%3;
+		pthread_cond_broadcast(&cond);
+	}
 	return NULL;
 }
 
 void* painter(void * ignored) {
-
+	while (current != 1) {
+		pthread_cond_wait(&cond, &lock);
+		// printf("current: %d\n", current);
+	}
+	current = 1;
+	numworking++;
+	pthread_mutex_unlock(&lock);
 	printf("starting painting\n");
 	sleep(1);
 	printf("finished painting\n");
+	pthread_mutex_lock(&lock);
+	numworking--;
+	pthread_mutex_unlock(&lock);
+	if (numworking == 0) {
+		current = current+1%3;
+		pthread_cond_broadcast(&cond);
+	}
 	return NULL;
 }
 
 void* decorator(void * ignored) {
-
+	while (current != 2) {
+		pthread_cond_wait(&cond, &lock);
+		// printf("current: %d\n", current);
+	}
+	current = 2;
+	numworking++;
+	pthread_mutex_unlock(&lock);
 	printf("starting decorating\n");
 	sleep(1);
 	printf("finished decorating\n");
+	pthread_mutex_lock(&lock);
+	numworking--;
+	pthread_mutex_unlock(&lock);
+	if (numworking == 0) {
+		current = current+1%3;
+		pthread_cond_broadcast(&cond);
+	}
 	return NULL;
 }
 
