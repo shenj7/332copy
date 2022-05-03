@@ -18,6 +18,8 @@
 // the max number of pages we want in memort at once, ideally
 #define MAX_PAGES 3
 
+int priorities[NUM_PAGES];
+
 int currentpage = 0;
 
 unsigned int pagemem = 0xf9f8c000;
@@ -70,72 +72,36 @@ static void handler(int sig, siginfo_t *si, void *unused)
 
 
 int main() {
-
-    //TODO: Add a bunch of segmentation fault handler setup here for
-    //PART 1 (plus you'll also have to add the handler your self)
-    
     struct forth_data forth;
-    char output[200]; // make static?
+    char output[200];
 
     static char stack[SIGSTKSZ];
     
     stack_t ss = {
                   .ss_size = SIGSTKSZ,
                   .ss_sp = stack,
-                // .ss_sp = output,
     };
-    
     sigaltstack(&ss, NULL);
-
     struct sigaction sa;
-
-    // SIGINFO tells sigaction that the handler is expecting extra parameters
-    // ONSTACK tells sigaction our signal handler should use the alternate stack
     sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sigemptyset(&sa.sa_mask);
     sa.sa_sigaction = handler;
-
-    //this is the more modern equalivant of signal, but with a few
-    //more options
     if (sigaction(SIGSEGV, &sa, NULL) == -1) {
         perror("error installing handler");
         exit(3);
     }
-    
-
-    // the return stack is a forth-specific data structure if we
-    // wanted to, we could give it an expanding memory segment like we
-    // do for the stack/heap but I opted to keep things simple
     int returnstack_size = getpagesize() * 2;
     void* returnstack = mmap(NULL, returnstack_size, PROT_READ | PROT_WRITE | PROT_EXEC,
                    MAP_ANON | MAP_PRIVATE, -1, 0);
-
-    
-    // initializing the stack/heap to a unmapped memory pointer we
-    // will map it by responding to segvs as the forth code attempts
-    // to read/write memory in that space
-
     int stackheap_size = getpagesize() * NUM_PAGES;
-
-    // TODO: Modify this in PART 1
-    // void* stackheap = mmap(NULL, stackheap_size, PROT_READ | PROT_WRITE | PROT_EXEC,
-    //                MAP_ANON | MAP_PRIVATE, -1, 0);
     void* stackheap = (void*) STACKHEAP_MEM_START;
     
     initialize_forth_data(&forth,
                           returnstack + returnstack_size, //beginning of returnstack
                           stackheap, //begining of heap
                           stackheap + stackheap_size); //beginning of stack
-
-    // this code actually executes a large amount of starter forth
-    // code in jonesforth.f.  If you screwed something up about
-    // memory, it's likely to fail here.
     load_starter_forth_at_path(&forth, "forth/jonesforth.f");
-
     printf("finished loading starter forth\n");
-    
-    // now we can set the input to our own little forth program
-    // (as a string)
     int fresult = f_run(&forth,
                         " : USESTACK BEGIN DUP 1- DUP 0= UNTIL ; " // function that puts numbers 0 to n on the stack
                         " : DROPUNTIL BEGIN DUP ROT = UNTIL ; " // funtion that pulls numbers off the stack till it finds target
@@ -148,7 +114,6 @@ int main() {
                         ,
                         output,
                         sizeof(output));
-    
     if(fresult != FCONTINUE_INPUT_DONE) {
         printf("forth did not finish executing sucessfully %d\n", fresult);
         exit(4);
