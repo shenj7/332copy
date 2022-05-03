@@ -18,35 +18,54 @@
 // the max number of pages we want in memort at once, ideally
 #define MAX_PAGES 3
 
-//copy paste handler
+int currentpage = 0;
+
+unsigned int pagemem = 0xf9f8c000;
+
+
 static void handler(int sig, siginfo_t *si, void *unused)
 {
     void* fault_address = si->si_addr;
 
     printf("in handler with invalid address %p\n", fault_address);
-    int distance = (void*) fault_address - (void*) STACKHEAP_MEM_START;
-    if(distance < 0 || distance > getpagesize()) {
-        printf("address not within expected page!\n");
-        exit(2);
-    }
+    int distance = fault_address - (void*) STACKHEAP_MEM_START;
 
+    int page = distance/getpagesize();
+    printf("mapping page %d\n", page);
 
-    // in your code you'll have to compute a particular page start and
-    // map that, but in this example we can just map the same page
-    // start all the time
-    printf("mapping page starting at %p\n", (void*) STACKHEAP_MEM_START);
-    sleep(1);
-    void* result = mmap((void*) STACKHEAP_MEM_START,
-                        getpagesize(),
-                        PROT_READ | PROT_WRITE | PROT_EXEC,
-                        MAP_FIXED | MAP_SHARED | MAP_ANONYMOUS,
-                        -1,
-                        0);
+    void* result = mmap((void*)STACKHEAP_MEM_START + page*getpagesize(),
+                    getpagesize(),
+                    PROT_READ | PROT_WRITE | PROT_EXEC,
+                    MAP_FIXED | MAP_SHARED | MAP_ANONYMOUS,
+                    -1,
+                    0);
     if(result == MAP_FAILED) {
         perror("map failed");
         exit(1);
     }
 }
+
+// // TODO:
+//     // in your code you'll have to compute a particular page start and
+//     // map that, but in this example we can just map the same page
+//     // start all the time
+//     printf("mapping page starting at %p\n", fault_address);
+//     printf("current page %d\n", currentpage);
+//     unsigned int pagetoadd = STACKHEAP_MEM_START + currentpage*getpagesize();
+//     // printf("memory to add: %d\n", pagetoadd);
+//     void* result = mmap(fault_address,
+//                         getpagesize(),
+//                         PROT_READ | PROT_WRITE | PROT_EXEC,
+//                         MAP_FIXED | MAP_SHARED | MAP_ANONYMOUS,
+//                         -1,
+//                         0);
+//     currentpage++;
+//     // pagemem = pagemem + getpagesize();
+//     if(result == MAP_FAILED) {
+//         perror("map failed");
+//         exit(1);
+//     }
+// }
 
 
 
@@ -56,24 +75,14 @@ int main() {
     //PART 1 (plus you'll also have to add the handler your self)
     
     struct forth_data forth;
-    static char output[200]; // made static
+    char output[200]; // make static?
 
-    // installing SEGV signal handler
-    // incidently we must configure signal handling to occur in its own stack
-    // otherwise our segv handler will use the regular stack for its data
-    // and it might try and unmap the very memory it is using as its stack
-
-    // note it is important that this variable be static, not so much
-    // in this example (it would be safe to remove it from main in
-    // particular)...but if you moved this setup to another function
-    // making this variable non-static is asking for some really funky
-    // bugs
-    // static char stack[SIGSTKSZ];
+    static char stack[SIGSTKSZ];
     
     stack_t ss = {
                   .ss_size = SIGSTKSZ,
-                //   .ss_sp = stack,
-                .ss_sp = output,
+                  .ss_sp = stack,
+                // .ss_sp = output,
     };
     
     sigaltstack(&ss, NULL);
