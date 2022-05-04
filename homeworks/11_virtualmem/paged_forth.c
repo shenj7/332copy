@@ -18,60 +18,89 @@
 // the max number of pages we want in memort at once, ideally
 #define MAX_PAGES 3
 
-int priorities[NUM_PAGES];
+int priorities[NUM_PAGES]; // 3, 2, 1, (0 means unmapped with file) (-1 means unmapped)
+int fds[NUM_PAGES];
 
 int currentpage = 0;
 
 unsigned int pagemem = 0xf9f8c000;
 
+static void unmap() {
+    for (int i = 0; i < NUM_PAGES; i++) {
+        if (priorities[i] == 1) {
+
+            printf("unmapping page %d\n", i);
+            munmap((void*)STACKHEAP_MEM_START+i*getpagesize(), getpagesize()); // unmap pages with 0 priority
+        }
+        // printf("%d", priorities[i]);
+        if (priorities[i] >= 1) {
+            priorities[i]--;
+        }
+    }
+}
 
 static void handler(int sig, siginfo_t *si, void *unused)
 {
     void* fault_address = si->si_addr;
 
+
+
     printf("in handler with invalid address %p\n", fault_address);
     int distance = fault_address - (void*) STACKHEAP_MEM_START;
+    unmap();
 
     int page = distance/getpagesize();
+    // printf("mapping page %d, priority %d\n", page, priorities[page]);
     printf("mapping page %d\n", page);
 
-    void* result = mmap((void*)STACKHEAP_MEM_START + page*getpagesize(),
-                    getpagesize(),
-                    PROT_READ | PROT_WRITE | PROT_EXEC,
-                    MAP_FIXED | MAP_SHARED | MAP_ANONYMOUS,
-                    -1,
-                    0);
-    if(result == MAP_FAILED) {
-        perror("map failed");
-        exit(1);
+    if (priorities[page] == -1) { // not yet mapped to file
+        char filename[11];
+        sprintf(filename, "page_%d.dat", page);
+        // printf("creating file %s\n", filename);
+        int fd = open(filename, O_RDWR | O_CREAT, S_IRWXU);
+        if(fd < 0) {
+            perror("error loading linked file");
+            exit(25);
+        }
+        char data = '\0';
+        lseek(fd, getpagesize() - 1, SEEK_SET);
+        write(fd, &data, 1);
+        lseek(fd, 0, SEEK_SET);
+        fds[page] = fd;
+        // void* result = mmap((void*)STACKHEAP_MEM_START + page*getpagesize(),
+        //                 getpagesize(),
+        //                 PROT_READ | PROT_WRITE | PROT_EXEC,
+        //                 MAP_FIXED | MAP_SHARED,
+        //                 -1,
+        //                 0);
+
+        char* result = mmap((void*)STACKHEAP_MEM_START + page*getpagesize(),
+                            getpagesize(),
+                            PROT_READ | PROT_WRITE | PROT_EXEC,
+                            MAP_FIXED | MAP_SHARED,
+                            fds[page], 0);
+        if(result == MAP_FAILED) {
+            perror("map failed");
+            exit(1);
+        }
+    } else { // retrieve from file
+        char* result = mmap((void*)STACKHEAP_MEM_START + page*getpagesize(),
+                            getpagesize(),
+                            PROT_READ | PROT_WRITE | PROT_EXEC,
+                            MAP_FIXED | MAP_SHARED,
+                            fds[page], 0);
+        if(result == MAP_FAILED) {
+            perror("map failed");
+            exit(1);
+        }
     }
+    priorities[page] = MAX_PAGES;
 }
 
-// // TODO:
-//     // in your code you'll have to compute a particular page start and
-//     // map that, but in this example we can just map the same page
-//     // start all the time
-//     printf("mapping page starting at %p\n", fault_address);
-//     printf("current page %d\n", currentpage);
-//     unsigned int pagetoadd = STACKHEAP_MEM_START + currentpage*getpagesize();
-//     // printf("memory to add: %d\n", pagetoadd);
-//     void* result = mmap(fault_address,
-//                         getpagesize(),
-//                         PROT_READ | PROT_WRITE | PROT_EXEC,
-//                         MAP_FIXED | MAP_SHARED | MAP_ANONYMOUS,
-//                         -1,
-//                         0);
-//     currentpage++;
-//     // pagemem = pagemem + getpagesize();
-//     if(result == MAP_FAILED) {
-//         perror("map failed");
-//         exit(1);
-//     }
-// }
-
-
-
 int main() {
+    for (int i = 0; i < NUM_PAGES; i++) {
+        priorities[i] = -1; // initialize
+    }
     struct forth_data forth;
     char output[200];
 
