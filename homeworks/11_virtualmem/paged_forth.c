@@ -32,7 +32,6 @@ static void unmap() {
             printf("unmapping page %d\n", i);
             munmap((void*)STACKHEAP_MEM_START+i*getpagesize(), getpagesize()); // unmap pages with 0 priority
         }
-        // printf("%d", priorities[i]);
         if (priorities[i] >= 1) {
             priorities[i]--;
         }
@@ -50,13 +49,11 @@ static void handler(int sig, siginfo_t *si, void *unused)
     unmap();
 
     int page = distance/getpagesize();
-    // printf("mapping page %d, priority %d\n", page, priorities[page]);
     printf("mapping page %d\n", page);
 
     if (priorities[page] == -1) { // not yet mapped to file
         char filename[11];
         sprintf(filename, "page_%d.dat", page);
-        // printf("creating file %s\n", filename);
         int fd = open(filename, O_RDWR | O_CREAT, S_IRWXU);
         if(fd < 0) {
             perror("error loading linked file");
@@ -67,12 +64,6 @@ static void handler(int sig, siginfo_t *si, void *unused)
         write(fd, &data, 1);
         lseek(fd, 0, SEEK_SET);
         fds[page] = fd;
-        // void* result = mmap((void*)STACKHEAP_MEM_START + page*getpagesize(),
-        //                 getpagesize(),
-        //                 PROT_READ | PROT_WRITE | PROT_EXEC,
-        //                 MAP_FIXED | MAP_SHARED,
-        //                 -1,
-        //                 0);
 
         char* result = mmap((void*)STACKHEAP_MEM_START + page*getpagesize(),
                             getpagesize(),
