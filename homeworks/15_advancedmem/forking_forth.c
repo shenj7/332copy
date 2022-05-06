@@ -48,6 +48,22 @@ void initialize_forths() {
                
     }
     // here's the place for code you want to run every time we run a test case
+        char filename[11];
+        sprintf(filename, "bigdat.dat");
+        int fd = open(filename, O_RDWR | O_CREAT, S_IRWXU);
+        if(fd < 0) {
+            perror("error loading linked file");
+            exit(25);
+        }
+        char data = '\0';
+        lseek(fd, getpagesize()*MAX_FORTHS*NUM_PAGES, SEEK_SET);
+        write(fd, &data, 1);
+        lseek(fd, 0, SEEK_SET);
+    void* result = mmap(NULL,
+        MAX_FORTHS*NUM_PAGES*getpagesize(),
+        PROT_READ | PROT_WRITE | PROT_EXEC,
+        MAP_SHARED|MAP_ANONYMOUS,
+        fd, 0);
 
     // mark all the forths as invalid
     for(int i = 0; i < MAX_FORTHS; i++) {
@@ -84,8 +100,12 @@ int create_forth(char* code) {
     // starting at position UNIVERSAL_PAGE_START to get started
     //
     // use mmap
-    
 
+    void* result = mmap((void*) UNIVERSAL_PAGE_START,
+        NUM_PAGES*getpagesize(),
+        PROT_READ | PROT_WRITE | PROT_EXEC,
+        MAP_FIXED|MAP_SHARED|MAP_ANONYMOUS,
+        -1, 0);
     // the return stack is a forth-specific data structure.  I
     // allocate a seperate space for it as the last 2 pages of
     // NUM_PAGES.

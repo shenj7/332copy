@@ -214,8 +214,8 @@ int main(int argc, char *argv[]) {
     // them out and add them back one step at a time
 
     SUITE_ADD_TEST(suite, test0_oneforth);
-    // SUITE_ADD_TEST(suite, test1_twoforths);
-    // SUITE_ADD_TEST(suite, test2_yields);
+    SUITE_ADD_TEST(suite, test1_twoforths);
+    SUITE_ADD_TEST(suite, test2_yields);
     // SUITE_ADD_TEST(suite, test3_page_count);
     // SUITE_ADD_TEST(suite, test4_identical_fork);
     // SUITE_ADD_TEST(suite, test5_fork_return);
