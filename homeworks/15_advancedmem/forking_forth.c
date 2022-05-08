@@ -6,6 +6,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include "forth/forth_embed.h"
 #include "forking_forth.h"
 
@@ -193,8 +195,8 @@ struct run_output run_forth_until_event(int forth_to_run) {
                                sizeof(output.output));
     output.forked_child_id = -1; // this should only be set to a value if we are forking
     if(output.result_code == FCONTINUE_FORK) {
-        printf("fork not yet implemented\n");
-        // output.forked_child_id = fork_forth(forth_to_run);
+        //printf("fork not yet implemented\n");
+        output.forked_child_id = fork_forth(forth_to_run);
     } 
     return output;
 
@@ -241,13 +243,18 @@ static void handler(int sig, siginfo_t *si, void *unused)
     int distance = (void*) fault_address - (void*) UNIVERSAL_PAGE_START;
     int page = distance/getpagesize();
 
+    if(distance < 0 || distance > (getpagesize() * NUM_PAGES)) {
+             printf("address not within expected page!\n");
+                          exit(2);
+                          
+    }
     printf("in handler with invalid address %p\n", fault_address);
 
     offset = forth_extra_data[uforthnum].page_table[page];
     
     if (offset == PAGE_UNCREATED) {
       for (int i = 0; i < NUM_PAGES*MAX_FORTHS; i++) {
-        printf("frame %d : %d\n", i, frames[i]);
+        //printf("frame %d : %d\n", i, frames[i]);
         if (frames[i] == PAGE_UNCREATED) {
           forth_extra_data[uforthnum].page_table[page] = i;
           frames[i] = CREATED;
@@ -258,11 +265,12 @@ static void handler(int sig, siginfo_t *si, void *unused)
     }
 
     printf("mapping page %d\n", page);
-    if(distance < 0 || distance > (getpagesize() * NUM_PAGES)) {
-             printf("address not within expected page!\n");
-                          exit(2);
-                          
-    }
+
+    char* result = mmap((void*) UNIVERSAL_PAGE_START + page*getpagesize(),
+        getpagesize(),
+        PROT_READ | PROT_WRITE | PROT_EXEC,
+        MAP_FIXED | MAP_SHARED,
+        ufd, getpagesize()*offset);
 
     
 }
@@ -286,13 +294,16 @@ int fork_forth() {
     memcpy(&dat, &forth_extra_data[uforthnum].data, sizeof(struct forth_data)); // copy forth data into child
     for (int i = 0; i < NUM_PAGES*MAX_FORTHS; i++) {
       if (frames[i] == PAGE_UNCREATED) {
-        forth_extra_data[forth_num_global].page_table[page] = i;
         frames[i] = CREATED;
+        forth_extra_data[uforthnum].page_table[i] = loc;
         break;
       }
     }
+    //push_onto_forth_stack(&dat, 0);
   }
   int status;
   wait(&status);
+  printf("pid: %d\n", pid);
   return pid;
 }
+
